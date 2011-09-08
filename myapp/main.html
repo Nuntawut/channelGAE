@@ -1,0 +1,29 @@
+<html>
+    <head>
+        <title>Google Channel API - Simple</title>
+        <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+    </head>
+    <body>
+        <script type='text/javascript'>
+            var channel = new goog.appengine.Channel('{{ token }}');
+            var socket = channel.open();
+            
+            socket.onopen = function() {
+                alert("Channel connected!");
+            }	
+			
+            socket.onmessage = function(evt) {
+                data = JSON.parse(evt.data);
+                alert(data.reply_message);
+            }
+            
+            function sendMsg(){
+		alert("DDT!");
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/msg?client_id={{ client_id }}&name=Dedy', true);
+                xhr.send();		 
+            }
+        </script>
+        <input type='button' value='Send my name to server' onclick='sendMsg()' />
+    </body>
+</html>     
