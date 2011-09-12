@@ -1,4 +1,4 @@
-application: nuntawut-sut
+application: channel-api
 version: 1
 runtime: go
 api_version: 2

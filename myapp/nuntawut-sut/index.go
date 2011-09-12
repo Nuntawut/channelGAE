@@ -5,12 +5,12 @@ import (
     "appengine/user"
     "appengine/channel"
     "appengine/datastore"
+    "appengine/memcache"
     "http"
     "template"
     "os"
     "fmt"
 )
-
 
 var (
         mainTemplate    *template.Template
@@ -18,7 +18,7 @@ var (
 )
 
 type Client struct {
-	ClientID string // the channel Client ID
+	ClientID string
 }
 
 func init() {
@@ -93,28 +93,46 @@ func AddClient(c appengine.Context, id string) (string, os.Error){
 	    }
 	}
 	
+	memcache.Delete(c, "sut")
+	
 	return channel.Create(c, id)
 
 }
 
 func messageReceived(w http.ResponseWriter, r *http.Request) {
 	
+	var clients []Client
+	
 	c := appengine.NewContext(r)
 	
 	message := r.FormValue("name")+": "+r.FormValue("message")	
+
+	_, err := memcache.JSON.Get(c, "sut", &clients)
+	if err != nil && err != memcache.ErrCacheMiss {
+		http.Error(w, err.String(), http.StatusInternalServerError)
+		return
+	}
+
+	if err == memcache.ErrCacheMiss {
+		q := datastore.NewQuery("Client")
+		_, err = q.GetAll(c, &clients)
+		if err != nil {
+			http.Error(w, err.String(), http.StatusInternalServerError)
+			return
+		}
+		err = memcache.JSON.Set(c, &memcache.Item{
+			Key: "sut", Object: clients,
+		})
+		if err != nil {
+			http.Error(w, err.String(), http.StatusInternalServerError)
+			return
+		}
+	}
 	
-	q := datastore.NewQuery("Client")
-	var gg []*Client
-	
-    if _, err := q.GetAll(c, &gg);err != nil {
-    	http.Error(w, err.String(), http.StatusInternalServerError)
-    	return
-    }
-    
-	for _, client := range gg {
-			channel.SendJSON(c, client.ClientID, map[string]string{
+	for _, client := range clients {
+		channel.SendJSON(c, client.ClientID, map[string]string{
 				"reply_message":message,
 			})
-    }
+	}
     
 }
